@@ -3,19 +3,25 @@ package utils
 import (
 	"backend/config"
 	"backend/models"
-	"encoding/json"
 	"errors"
 	"fmt"
-	fsrs "github.com/open-spaced-repetition/go-fsrs/v3"
-	"net/http"
 	"time"
+
+	fsrs "github.com/open-spaced-repetition/go-fsrs/v3"
 )
 
+const (
+	Easy   = 2.6
+	Medium = 2.5
+	Hard   = 2.3
+)
+
+// calculates next review based on the current date and interval in days.
 func CalculateNextReviewDate(currDate time.Time, interval int) time.Time {
 	return currDate.AddDate(0, 0, interval)
 }
 
-// ///////////////////////////////////////////// got this from goDoc
+// ///////// initializes the FSRS parameters for scheduling. (GoDoc)
 func InitializeParameters() fsrs.Parameters {
 	parameters := fsrs.Parameters{
 		RequestRetention: 0.9,
@@ -56,7 +62,7 @@ func UpdateInterval(difficultyLevel string, rating, interval int) (int, error) {
 	}
 }
 
-// helper func for ^UpdateInterval
+// helper func for ^UpdateInterval//creates and schedules a card
 func createAndScheduleCard(difficultyLevel string, interval int, rating int) (fsrs.SchedulingInfo, error) {
 	now := time.Now() // from GoDoc
 	card := fsrs.Card{
@@ -73,11 +79,11 @@ func createAndScheduleCard(difficultyLevel string, interval int, rating int) (fs
 
 	switch difficultyLevel {
 	case "easy":
-		card.Difficulty = 2.6 // For easy
+		card.Difficulty = Easy
 	case "medium":
-		card.Difficulty = 2.5 // For medium
+		card.Difficulty = Medium
 	case "hard":
-		card.Difficulty = 2.3 // For hard
+		card.Difficulty = Hard
 	}
 
 	parameters := InitializeParameters()
@@ -88,7 +94,22 @@ func createAndScheduleCard(difficultyLevel string, interval int, rating int) (fs
 }
 
 // ////////////////////////////////////////////
-var db = config.DB
-var flashcards []models.Flashcard
 
-func GetLearningPlan() []models.Flashcard {}
+var db = config.DB
+
+// retrieves learning plans for a specific flashcard and date.
+func GetLearningPlan(id uint, date time.Time) ([]models.LearningPlan, error) {
+	var plans []models.LearningPlan
+	var flashcard models.Flashcard
+	// check if card exists
+	if err := db.First(&flashcard, id).Error; err != nil {
+		return nil, errors.New("flashcard doesn't exist")
+	} // query based on id and date
+	if err := db.Where("flashcard_id = ? AND review_date = ?", flashcard.ID, date).Find(&plans).Error; err != nil {
+		return nil, errors.New("error querying plans")
+	} //if no plans are found
+	if len(plans) == 0 {
+		return nil, errors.New("no learning plans found")
+	}
+	return plans, nil
+}
