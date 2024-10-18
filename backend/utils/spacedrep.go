@@ -5,9 +5,8 @@ import (
 	"backend/models"
 	"errors"
 	"fmt"
-	"time"
-
 	fsrs "github.com/open-spaced-repetition/go-fsrs/v3"
+	"time"
 )
 
 const (
@@ -95,21 +94,23 @@ func createAndScheduleCard(difficultyLevel string, interval int, rating int) (fs
 
 // ////////////////////////////////////////////
 
-var db = config.DB
-
 // retrieves learning plans for a specific flashcard and date.
 func GetLearningPlan(id uint, date time.Time) ([]models.LearningPlan, error) {
 	var plans []models.LearningPlan
 	var flashcard models.Flashcard
-	// check if card exists
-	if err := db.First(&flashcard, id).Error; err != nil {
+	// Check if the flashcard exists
+	if err := config.DB.First(&flashcard, id).Error; err != nil {
 		return nil, errors.New("flashcard doesn't exist")
-	} // query based on id and date
-	if err := db.Where("flashcard_id = ? AND review_date = ?", flashcard.ID, date).Find(&plans).Error; err != nil {
+	}
+	// Format date to "MM-DD-YYYY"
+	truncatedDate := date.Format("10-15-2024")
+	// Query for learning plans based on flashcard ID and the exact date (ignoring the time)
+	if err := config.DB.Where("flashcard_id = ? AND DATE(review_date) = ?", flashcard.ID, truncatedDate).Find(&plans).Error; err != nil {
 		return nil, errors.New("error querying plans")
-	} //if no plans are found
+	}
+	// If no plans are found, return an empty slice instead of an error
 	if len(plans) == 0 {
-		return nil, errors.New("no learning plans found")
+		return plans, nil // Return an empty slice
 	}
 	return plans, nil
 }
