@@ -4,25 +4,36 @@ import (
 	"backend/config"
 	"backend/helpers"
 	"backend/models"
-	"github.com/gorilla/mux"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 func CreateLearningPlan(w http.ResponseWriter, r *http.Request) {
-	var newLearningPlan models.LearningPlan
-	if _, err := helpers.CreateItemWithLearningPlan(w, r, config.DB, Validate, &newLearningPlan); err != nil {
+	vars := mux.Vars(r)
+	flashcardIDStr := vars["flashcardId"]
+	flashcardID, err := strconv.ParseUint(flashcardIDStr, 10, 32)
+	if err != nil {
 		return
 	}
-	helpers.EncodeJSONResponse(w, newLearningPlan, http.StatusCreated)
+	var plan models.LearningPlan
+	if err := helpers.DecodeRequestBody(w, r, &plan); err != nil {
+		return
+	}
+	defer r.Body.Close()
+	plan.FlashcardID = uint(flashcardID)
+	if err := config.DB.Create(&plan).Error; err != nil {
+		return
+	}
+	helpers.EncodeJSONResponse(w, plan, http.StatusCreated)
 }
 
-func GetLearningPlans(w http.ResponseWriter, r *http.Request) {
-	var plans []models.LearningPlan
-	if err := config.DB.Find(&plans).Error; err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+func GetPlanByID(w http.ResponseWriter, r *http.Request) {
+	var foundPlan models.LearningPlan
+	if err := helpers.GetItemByIDHelper(w, r, config.DB, &foundPlan); err != nil {
 		return
 	}
-	helpers.EncodeJSONResponse(w, plans, http.StatusOK)
 }
 
 func DeleteLearningPlan(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +46,7 @@ func DeleteLearningPlan(w http.ResponseWriter, r *http.Request) {
 func UpdateLearningPlan(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	var existingPlan models.LearningPlan
-	if err := helpers.UpdateItem(w, r, config.DB, Validate, params, "learningPlan", params["id"], &existingPlan); err != nil {
+	if err := helpers.UpdateItem(w, r, config.DB, Validate, "learningPlan", params["id"], &existingPlan); err != nil {
 		return
 	}
 }

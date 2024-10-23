@@ -6,23 +6,29 @@ import (
 	"backend/models"
 	"github.com/gorilla/mux"
 	"net/http"
+	"strconv"
 )
 
+// creates a new review for a specific flashcard
 func CreateReview(w http.ResponseWriter, r *http.Request) {
-	var createReview models.Review
-	if _, err := helpers.CreateItemWithLearningPlan(w, r, config.DB, Validate, &createReview); err != nil {
+	vars := mux.Vars(r)
+	flashcardIDStr := vars["flashcardId"] // Get flashcard ID from the route
+	flashcardID, err := strconv.ParseUint(flashcardIDStr, 10, 32)
+	if err != nil {
 		return
 	}
-	helpers.EncodeJSONResponse(w, createReview, http.StatusCreated)
-}
-
-func GetReviews(w http.ResponseWriter, r *http.Request) {
-	var reviews []models.Review
-	if err := config.DB.Find(&reviews).Error; err != nil {
-		http.Error(w, "Error retreiving cards", http.StatusInternalServerError)
+	var review models.Review
+	if err := helpers.DecodeRequestBody(w, r, &review); err != nil {
 		return
 	}
-	helpers.EncodeJSONResponse(w, reviews, http.StatusOK)
+	defer r.Body.Close()
+	// Ensure the review is tied to the correct flashcard
+	review.FlashcardID = uint(flashcardID)
+	// create review and chech for errors
+	if err := config.DB.Create(&review).Error; err != nil {
+		return
+	}
+	helpers.EncodeJSONResponse(w, review, http.StatusCreated)
 }
 
 func GetReviewByID(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +48,7 @@ func DeleteReview(w http.ResponseWriter, r *http.Request) {
 func UpdateReview(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	var existingReview models.Review
-	if err := helpers.UpdateItem(w, r, config.DB, Validate, params, "review", params["id"], &existingReview); err != nil {
+	if err := helpers.UpdateItem(w, r, config.DB, Validate, "review", params["id"], &existingReview); err != nil {
 		return
 	}
 }

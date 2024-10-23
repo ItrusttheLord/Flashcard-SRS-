@@ -6,11 +6,13 @@ import (
 )
 
 type Flashcard struct {
-	gorm.Model //this incluedes ID,CreatedAt,UpdatedAt
-	//validate them to make sure they are not empty
-	Question       string    `json:"question" validate:"required,min=1,max=255"`
-	Answer         string    `json:"answer" validate:"required,min=1,max=255"`
-	DifficultLevel string    `json:"difficult" validate:"oneof=Easy Medium Hard"`
-	NextReviewDate time.Time `json:"nextReviewDate"`
-	Interval       int       `json:"interval" validate:"gte=0"`
+	gorm.Model
+	Question       string         `json:"question" validate:"required,min=1,max=255"`
+	Answer         string         `json:"answer" validate:"required,min=1,max=255"`
+	DifficultLevel string         `json:"difficult" validate:"oneof=Easy Medium Hard"`
+	NextReviewDate time.Time      `json:"nextReviewDate"`
+	Interval       int            `json:"interval" validate:"gte=0"`
+	Rating         int            `json:"rating" validate:"min=1,max=5"`
+	Reviews        []Review       `json:"reviews" gorm:"foreignKey:FlashcardID"`
+	LearningPlan   []LearningPlan `json:"learning_plan" gorm:"foreignKey:FlashcardID"`
 }

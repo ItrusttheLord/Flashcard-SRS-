@@ -1,48 +1,28 @@
 package helpers
 
 import (
-	"backend/models"
-	"backend/utils"
 	"encoding/json"
-	"log"
+	"gorm.io/gorm"
 	"net/http"
-	"reflect"
-	"time"
 )
 
-// ////////////////// Helper func to encode JSON response
 func EncodeJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(data)
 }
 
-// ///// helper func to set the next review date
-func setNextReviewDate(item interface{}, learningPlan []models.LearningPlan) {
-	// Check if learningPlan is empty
-	if len(learningPlan) == 0 {
-		return
+func DecodeRequestBody(w http.ResponseWriter, r *http.Request, item interface{}) error {
+	if err := json.NewDecoder(r.Body).Decode(item); err != nil {
+		return err
 	}
-	// Use reflection to access fields
-	itemValue := reflect.ValueOf(item).Elem()
-	// Get the rating
-	ratingField := itemValue.FieldByName("Rating")
-	if !ratingField.IsValid() || ratingField.Kind() != reflect.Int {
-		return
+	return nil
+}
+
+func FetchExistingItem(w http.ResponseWriter, db *gorm.DB, id string, item interface{}) error {
+	//find matchin
+	if err := db.First(item, id).Error; err != nil {
+		return err
 	}
-	rating := ratingField.Int()
-	// Calculate the next interval && check for err
-	nextInterval, err := utils.UpdateInterval("medium", int(rating), int(learningPlan[0].CurrentInterval))
-	if err != nil {
-		return
-	}
-	// Calculate the next review date
-	nextReviewDate := utils.CalculateNextReviewDate(time.Now(), nextInterval)
-	// Set the next review date in the item
-	nextReviewField := itemValue.FieldByName("NextReviewDate")
-	if nextReviewField.IsValid() && nextReviewField.CanSet() && nextReviewField.Kind() == reflect.Struct {
-		nextReviewField.Set(reflect.ValueOf(nextReviewDate))
-	} else {
-		log.Println("Item does not have a valid NextReviewDate field or cannot be set")
-	}
+	return nil
 }
